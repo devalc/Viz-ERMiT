@@ -41,6 +41,7 @@ options(shiny.maxRequestSize = 100 * 1024 ^ 2)
 ## data
 
 df = readRDS("./data/portland202009_with_ermit_shps_subcatchments_wgs84_split_wshed_and_scen.RDS")
+bbox <- st_bbox(df) %>% as.vector()
 
 ## ----------------------------------define UI------------------------------------------##
 # 
@@ -75,8 +76,10 @@ ui <- navbarPage(title = div("Viz-WEPPcloud with ERMiT",
                  windowTitle = "Viz-WEPPcloud with ERMiT",
                  
                  id="nav",
-                 theme = bslib::bs_theme(primary = "#fa8072", secondary = "#25E7F3", 
-                                         success = "#A8CEDD", bootswatch = "darkly"),
+                 theme = bslib::bs_theme(bootswatch = "darkly",font_scale = 1.2,
+                                         bg = "#202123", fg = "#B8BCC2",
+                                         primary = "#6d597a", secondary = "#EA80FC",
+                                         base_font = font_google("Righteous")),
                  
                  
                  tabPanel("",
@@ -150,7 +153,7 @@ ui <- navbarPage(title = div("Viz-WEPPcloud with ERMiT",
                           )
                           
                           
-                 )
+                 ) 
 )
 
 
@@ -177,14 +180,18 @@ server <- function(input, output, session) {
       tmap::tm_polygons(input$var_sel,
         id = "watershed",
         palette = "viridis",
-        style = "pretty",
+        style = "kmeans",
         midpoint = TRUE,
-        # title = "Comparison minus Baseline",
-        popup.vars = c("Watershed", "Scenario","wepp_id", "SdYd_kg_ha", input$var_sel)
+        textNA = "No Erosion",
+        popup.vars = if (input$var_sel == "SdYd_kg_ha") {
+          c("Watershed", "Scenario","wepp_id", input$var_sel, "sed_reduc_at_25probab",
+            "sed_reduc_at_50probab", "sed_reduc_at_75probab")
+        }else{
+          c("Watershed", "Scenario","wepp_id", "SdYd_kg_ha", input$var_sel)}
       )+
     tmap::tm_layout(scale = 0.1,
                       title = "")
-    
+
     tmap_leaflet(tm2,in.shiny = TRUE)  %>%
       addMiniMap(tiles = providers$Esri.WorldStreetMap,
                  toggleDisplay = TRUE,
