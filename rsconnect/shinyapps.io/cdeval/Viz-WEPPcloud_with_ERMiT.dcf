@@ -1,0 +1,14 @@
+name: Viz-WEPPcloud_with_ERMiT
+title: Viz-WEPPcloud_with_ERMiT
+username:
+account: cdeval
+server: shinyapps.io
+hostUrl: https://api.shinyapps.io/v1
+appId: 6639633
+bundleId: 6096764
+url: https://cdeval.shinyapps.io/Viz-WEPPcloud_with_ERMiT/
+when: 1657767045.11769
+lastSyncTime: 1657767045.11771
+asMultiple: FALSE
+asStatic: FALSE
+ignoredFiles: .gitattributes|README.md|Rplots.pdf
