@@ -5,10 +5,10 @@ account: cdeval
 server: shinyapps.io
 hostUrl: https://api.shinyapps.io/v1
 appId: 6639633
-bundleId: 6098873
+bundleId: 6136938
 url: https://cdeval.shinyapps.io/Viz-WEPPcloud_with_ERMiT/
-when: 1657823453.31257
-lastSyncTime: 1657823453.31258
+when: 1658894633.30598
+lastSyncTime: 1658894633.30599
 asMultiple: FALSE
 asStatic: FALSE
-ignoredFiles: .gitattributes|README.md|Rplots.pdf|test.R
+ignoredFiles: .gitattributes|data/portland202009_with_ermit_shps_subcatchments_wgs84_split_wshed_and_scen.RDS|README.md|Rplots.pdf|test_R/old_working_with_tmap.R|test_R/test.R
