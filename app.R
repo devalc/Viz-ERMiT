@@ -40,12 +40,20 @@ options(shiny.maxRequestSize = 100 * 1024 ^ 2)
 ## --------------------------------------------------------------------------------------##
 ## data
 
-df = readRDS("./data/portland202009_with_ermit_shps_subcatchments_wgs84_split_wshed_and_scen.RDS")
+df = readRDS("./data/portland202203_with_ermit_shps_subcatchments_wgs84_split_wshed_and_scen.RDS")
 bbox <- st_bbox(df) %>% as.vector()
+
+## --------------------------------------------------------------------------------------##
+## Leaflet NA legend position fix 
+
+css_fix <- "div.info.legend.leaflet-control br {clear: both;}"
+html_fix <- as.character(htmltools::tags$style(type = "text/css", css_fix))
 
 ## ----------------------------------define UI------------------------------------------##
 # 
 ui <- navbarPage(title = div("Viz-WEPPcloud with ERMiT",
+                             
+                             HTML(html_fix),
                              div(
                                tags$a(
                                  href = "https://forest.moscowfsl.wsu.edu/fswepp/",
@@ -71,14 +79,14 @@ ui <- navbarPage(title = div("Viz-WEPPcloud with ERMiT",
                                    height = 70
                                  )
                                )
-                               )),
+                             )),
                  
                  windowTitle = "Viz-WEPPcloud with ERMiT",
                  
                  id="nav",
                  theme = bslib::bs_theme(bootswatch = "darkly",font_scale = 1.2,
                                          bg = "#202123", fg = "#B8BCC2",
-                                         primary = "#6d597a", secondary = "#EA80FC",
+                                         primary = "#6D597A", secondary = "#EA80FC",
                                          base_font = font_google("Righteous")),
                  
                  
@@ -171,34 +179,77 @@ server <- function(input, output, session) {
   
   
   output$map <- leaflet::renderLeaflet({
+    leaflet::leaflet(df)%>%
+      leaflet::addProviderTiles("Esri.WorldImagery",group = "WorldImagery") %>%
+      leaflet::addProviderTiles("Esri.WorldTopoMap",group = "WorldTopoMap") %>%
+      leaflet::addProviderTiles("OpenStreetMap",group = "OpenStreetMap") %>%
+      leaflet::addProviderTiles("Esri.WorldGrayCanvas",group = "WorldGrayCanvas")%>%
+      leaflet::fitBounds(bbox[1], bbox[2], bbox[3], bbox[4])%>%
+      leaflet::addMiniMap(tiles = "Esri.WorldStreetMap",
+                          toggleDisplay = TRUE,
+                          zoomAnimation = TRUE,position = "bottomright",height = 100)%>%
+      leaflet::addLayersControl(
+        baseGroups =c("WorldImagery", "OpenStreetMap", "WorldTopoMap", "WorldGrayCanvas"),
+        options = layersControlOptions(collapsed=FALSE)
+      )%>% 
+      addLegend(pal = colorpal(),
+                values = ~get(unique(input$var_sel)),
+                opacity = 0.7,
+                title = ~as.character(input$var_sel),
+                position = "bottomright",
+                na.label = "No Erosion")
+  })
+  
+  colorpal  <- reactive({
     req(df_subset())
-    tm2 <-tm_basemap(leaflet::providers$Esri.WorldImagery,group = "WorldImagery") +
-      tm_basemap(leaflet::providers$Esri.WorldTopoMap,group = "WorldTopoMap")  +
-      tm_basemap(leaflet::providers$OpenStreetMap, group = "OpenStreetMap")+
-      tm_basemap(leaflet::providers$Esri.WorldGrayCanvas,group = "WorldGrayCanvas") +
-      tm_shape(df_subset(), name = "") +
-      tmap::tm_polygons(input$var_sel,
-        id = "watershed",
-        palette = "viridis",
-        style = "kmeans",
-        midpoint = TRUE,
-        textNA = "No Erosion",
-        popup.vars = if (input$var_sel == "SdYd_kg_ha") {
-          c("Watershed", "Scenario","wepp_id", input$var_sel, "sed_reduc_at_25probab",
-            "sed_reduc_at_50probab", "sed_reduc_at_75probab")
-        }else{
-          c("Watershed", "Scenario","wepp_id", "SdYd_kg_ha", input$var_sel)}
-      )+
-    tmap::tm_layout(scale = 0.1,
-                      title = "")
-
-    tmap_leaflet(tm2,in.shiny = TRUE)  %>%
-      addMiniMap(tiles = providers$Esri.WorldStreetMap,
-                 toggleDisplay = TRUE,
-                 zoomAnimation = TRUE,position = "bottomright",height = 100)
+    req(input$var_sel)
+    colorNumeric("viridis", unique(df_subset()$input$var_sel)
+    )
   })
   
   
+  observe(leafletProxy("map", data = df_subset()) %>%
+            leaflet::clearShapes() %>%
+            leaflet::addPolygons(data = df_subset(),
+                                 fillColor = ~colorpal()(get(input$var_sel)),
+                                 weight = 0.7,
+                                 opacity = 1,
+                                 color = "white",
+                                 dashArray = "3",
+                                 fillOpacity = 0.7,
+                                 highlightOptions = highlightOptions(weight = 2,
+                                                                     color = "red",
+                                                                     dashArray = "",
+                                                                     fillOpacity = 0.7,
+                                                                     bringToFront = TRUE),
+                                 popup = paste0(
+                                   "<strong>Watershed: </strong> ",
+                                   df_subset()$Watershed,                                                  "<br>",
+                                   "<br/>",
+                                   "<strong>Scenario: </strong> ",
+                                   df_subset()$Scenario,
+                                   "<br/>",
+                                   "<strong>wepp_id: </strong> ",
+                                   df_subset()$wepp_id,
+                                   "<br/>",
+                                   "<strong>SdYd_kg_ha: </strong> ",
+                                   df_subset()$SdYd_kg_ha,
+                                   "<br/>",
+                                   "<strong>sed_reduc_at_25probab: </strong> ",
+                                   df_subset()$sed_reduc_at_25probab,
+                                   "<br/>",
+                                   "<strong>sed_reduc_at_50probab: </strong> ",
+                                   df_subset()$sed_reduc_at_50probab,
+                                   "<br/>",
+                                   "<strong>sed_reduc_at_75probab: </strong> ",
+                                   df_subset()$sed_reduc_at_75probab
+                                 ),
+                                 labelOptions = labelOptions(
+                                   style = list("font-weight" = "normal", padding = "3px 8px"),
+                                   textsize = "15px",
+                                   direction = "auto")
+                                 
+            ))
 }
 
 
