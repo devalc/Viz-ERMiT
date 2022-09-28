@@ -28,11 +28,11 @@ library(shiny, quietly = TRUE)
 library(leaflet, quietly = TRUE)
 library(tidyverse, quietly = TRUE)
 library(shinyWidgets, quietly = TRUE)
-library(shinycustomloader, quietly = TRUE)
+library(ggthemes, quietly = TRUE)
 library(bslib, quietly = TRUE)
 library(sf, quietly = TRUE)
-library(tmap, quietly = TRUE)
-
+library(plotly, quietly = TRUE)
+library(sfarrow, quietly = TRUE)
 
 ## ----------------------------------Init Options---------------------------------------##
 options(shiny.maxRequestSize = 100 * 1024 ^ 2)
@@ -40,7 +40,7 @@ options(shiny.maxRequestSize = 100 * 1024 ^ 2)
 ## --------------------------------------------------------------------------------------##
 ## data
 
-df = readRDS("./data/portland202203_with_ermit_shps_subcatchments_wgs84_split_wshed_and_scen.RDS")
+df = sfarrow::st_read_parquet("./data/portland202203_with_ermit_shps_subcatchments_wgs84_split_wshed_and_scen.parquet")
 bbox <- st_bbox(df) %>% as.vector()
 
 ## --------------------------------------------------------------------------------------##
@@ -106,16 +106,17 @@ ui <- navbarPage(title = div("Viz-WEPPcloud with ERMiT",
                               
                               absolutePanel(id = "controls", 
                                             class = "panel panel-default",
+                                            style = "overflow-y:scroll; max-height: 800px",
                                             fixed = TRUE, draggable = TRUE, 
                                             top = 140, left = 180, right = "auto",
-                                            bottom = "auto", width = 330, height = "auto",
+                                            bottom = "auto", width = 400, height = "auto",
                                             
                                             pickerInput(
                                               inputId = "wat_sel",
                                               label = "Select watershed",
                                               choices = unique(df$Watershed),
                                               selected = unique(df$Watershed)[2],
-                                              multiple = TRUE,
+                                              multiple = FALSE,
                                               options = list(
                                                 `actions-box` = TRUE,
                                                 `header` = "Select watershed ",
@@ -142,11 +143,12 @@ ui <- navbarPage(title = div("Viz-WEPPcloud with ERMiT",
                                             pickerInput(
                                               inputId = "var_sel",
                                               label = "Select variable",
-                                              choices = c("SdYd_kg_ha",
-                                                          "sed_reduc_at_25probab",
-                                                          "sed_reduc_at_50probab",
-                                                          "sed_reduc_at_75probab"),
-                                              selected = "sed_reduc_at_50probab",
+                                              choices = c("SdYd_kg",
+                                                          "Sediment_Reduction_kg",
+                                                          # "sed_reduc_kg_25probab",
+                                                          # "sed_reduc_kg_50probab",
+                                                          # "sed_reduc_kg_75probab"),
+                                              selected = "SdYd_kg",
                                               options = list(
                                                 `actions-box` = TRUE,
                                                 `header` = "Select variable ",
@@ -154,7 +156,29 @@ ui <- navbarPage(title = div("Viz-WEPPcloud with ERMiT",
                                                 `width` = " css-width ",
                                                 `size` = 6
                                               )
-                                            )
+                                            )),
+                                            
+                                            pickerInput(
+                                              inputId = "prop_sel",
+                                              label = "Select probability",
+                                              choices = c("25_percent",
+                                                          "50_percent",
+                                                          "75_percent"),
+                                              selected = "25_percent",
+                                              options = list(
+                                                `actions-box` = TRUE,
+                                                `header` = "Select probability ",
+                                                `windowPadding` = 1,
+                                                `width` = " css-width ",
+                                                `size` = 6
+                                              )
+                                            ),
+                                            
+                                            sliderInput("filt_area", "Filter by % Area:",
+                                                        min = 0, max = 100,
+                                                        value = 100),
+                                            
+                                            plotlyOutput("cumulative", height = 350)
                                             
                               )
                               
@@ -174,9 +198,37 @@ server <- function(input, output, session) {
     req(input$scen_sel)
     df %>%
       dplyr::filter(Watershed %in% input$wat_sel) %>%
-      dplyr::filter(Scenario %in% input$scen_sel)
+      dplyr::filter(Scenario %in% input$scen_sel) 
   })
   
+  
+  df_for_cplt <- reactive({
+    req(df_subset())
+    req(input$filt_area)
+    df_subset() %>% 
+      dplyr::select(Watershed, Scenario, wepp_id, area_ha_ , input$var_sel)%>%na.omit() %>%
+      dplyr::arrange_at(.vars = input$var_sel, desc) %>%
+      dplyr::mutate(cumPercArea = cumsum(area_ha_) / sum(area_ha_) *100,
+                    !!paste("cum", input$var_sel, sep = "_") := cumsum(as.numeric(get(input$var_sel)))/sum(as.numeric(get(input$var_sel)))*100) %>%
+      dplyr::filter(cumPercArea <= input$filt_area)
+  })
+  
+  
+  output$cumulative <- renderPlotly({
+    req(df_for_cplt())
+    p1 <- df_for_cplt()  %>% ggplot(aes(x = cumPercArea)) + 
+      geom_line(aes(y = get(!!paste("cum", input$var_sel,sep = "_"))), size = 0.5)+ 
+      # scale_y_continuous(labels = scales::percent_format(accuracy = 1))+
+      theme(axis.title.x = element_blank(),
+            axis.title.y = element_blank(),
+            axis.text.y =  element_blank(),
+            axis.text.x = element_blank())+
+      ggthemes::theme_economist()+ ggthemes::scale_color_colorblind()+
+      labs(x = "Percent of total hillslope area",
+           y = "Cumulative Percent of Total selected variable"
+        )
+        
+  })
   
   output$map <- leaflet::renderLeaflet({
     leaflet::leaflet(df)%>%
@@ -201,16 +253,16 @@ server <- function(input, output, session) {
   })
   
   colorpal  <- reactive({
-    req(df_subset())
+    req(df_for_cplt())
     req(input$var_sel)
-    colorNumeric("viridis", unique(df_subset()$input$var_sel)
+    colorNumeric("viridis", unique(df_for_cplt()$input$var_sel)
     )
   })
   
   
-  observe(leafletProxy("map", data = df_subset()) %>%
+  observe(leafletProxy("map", data = df_for_cplt()) %>%
             leaflet::clearShapes() %>%
-            leaflet::addPolygons(data = df_subset(),
+            leaflet::addPolygons(data = df_for_cplt(),
                                  fillColor = ~colorpal()(get(input$var_sel)),
                                  weight = 0.7,
                                  opacity = 1,
@@ -232,24 +284,29 @@ server <- function(input, output, session) {
                                    "<strong>wepp_id: </strong> ",
                                    df_subset()$wepp_id,
                                    "<br/>",
-                                   "<strong>SdYd_kg_ha: </strong> ",
-                                   df_subset()$SdYd_kg_ha,
+                                   "<strong>SdYd_kg: </strong> ",
+                                   df_subset()$SdYd_kg,
                                    "<br/>",
-                                   "<strong>sed_reduc_at_25probab: </strong> ",
-                                   df_subset()$sed_reduc_at_25probab,
+                                   "<strong>sed_reduc_kg_25probab: </strong> ",
+                                   df_subset()$sed_reduc_kg_25probab,
                                    "<br/>",
-                                   "<strong>sed_reduc_at_50probab: </strong> ",
-                                   df_subset()$sed_reduc_at_50probab,
+                                   "<strong>sed_reduc_kg_50probab: </strong> ",
+                                   df_subset()$sed_reduc_kg_50probab,
                                    "<br/>",
-                                   "<strong>sed_reduc_at_75probab: </strong> ",
-                                   df_subset()$sed_reduc_at_75probab
+                                   "<strong>sed_reduc_kg_75probab: </strong> ",
+                                   df_subset()$sed_reduc_kg_75probab
                                  ),
                                  labelOptions = labelOptions(
                                    style = list("font-weight" = "normal", padding = "3px 8px"),
                                    textsize = "15px",
                                    direction = "auto")
                                  
-            ))
+            )
+          )
+  
+  
+  
+ 
 }
 
 
