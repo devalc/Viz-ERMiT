@@ -1,0 +1,14 @@
+name: Viz-ERMiT
+title: Viz-ERMiT
+username:
+account: cdeval
+server: shinyapps.io
+hostUrl: https://api.shinyapps.io/v1
+appId: 7151288
+bundleId: 6348584
+url: https://cdeval.shinyapps.io/Viz-ERMiT/
+when: 1664394854.64055
+lastSyncTime: 1664394854.64056
+asMultiple: FALSE
+asStatic: FALSE
+ignoredFiles: .gitattributes|data/old/portland202009_with_ermit_shps_subcatchments_wgs84_split_wshed_and_scen.RDS|data/old/portland202203_with_ermit_shps_subcatchments_wgs84_split_wshed_and_scen.RDS|data/portland202203_with_ermit_shps_subcatchments_wgs84_split_wshed_and_scen.parquet|data/portland202203_with_ermit_shps_subcatchments_wgs84_split_wshed_and_scen.RDS|test_R/app.R|test_R/app_new.R|test_R/old_working_with_tmap.R|test_R/test.R
