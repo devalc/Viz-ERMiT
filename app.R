@@ -19,8 +19,8 @@
 ## --------------------------------------------------------------------------------------##
 
 ## --------------------------clear environment and console-------------------------------##
-rm(list = ls())
-cat("\014")
+# rm(list = ls())
+# cat("\014")
 
 ## ----------------------------------Load packages---------------------------------------##
 library(shiny)
@@ -34,6 +34,7 @@ library(leaflet)
 library(plotly)
 library(tidyverse)
 library(sever)
+
 
 
 
@@ -92,7 +93,7 @@ ui <-
       width = 350,
       minified = TRUE,
       useSever(),
-      sidebarMenu(
+      sidebarMenu(tags$head(tags$style('.shinyhelper-wrapper {margin-right:15px;}')),
         menuItem(
           "Select Data",
           icon = icon("database"),
@@ -114,7 +115,17 @@ ui <-
               multiple = F,
               placeholder = "No file selected",
               accept = ".parquet"
-            )
+            )%>% 
+              helper(
+                icon = "question-circle",
+                colour = "#FF0000",
+                content = "upload_help",
+                type = "markdown",
+                size = "l",
+                buttonLabel = "Okay",
+                easyClose = TRUE,
+                fade = TRUE
+              )
           ) 
         ),
         
@@ -138,7 +149,17 @@ ui <-
             min = 0,
             max = 100,
             value = 100
-          )
+          )%>% 
+            helper(
+              icon = "question-circle",
+              colour = "#FF0000",
+              content = "filter_help",
+              type = "markdown",
+              size = "l",
+              buttonLabel = "Okay",
+              easyClose = TRUE,
+              fade = TRUE
+            )
         )
         
         
@@ -159,6 +180,8 @@ ui <-
 server <- function(input, output, session) {
   
   sever()
+  
+  observe_helpers()
   
   data_df <- reactive({
     if (input$dataradio == 'Default') {
@@ -210,8 +233,8 @@ output$SelVars <- renderMenu({
         pickerInput(
           inputId = "var_sel",
           label = "Select variable",
-          choices = c("SdYd_Mg",
-                      "Sediment_Reduction_Mg"),
+          choices = c("Sediment Yield (Mg)"= "SdYd_Mg",
+                      "Reduction in Sediment Yield (Mg)" = "Sediment_Reduction_Mg"),
           selected = "SdYd_Mg",
           multiple = FALSE
         ),
@@ -224,7 +247,17 @@ output$SelVars <- renderMenu({
           choices = c("25%", "50%", "75%"),
           selected = "25%",
           multiple = FALSE,
-        ))
+        )%>% 
+          helper(
+            icon = "question-circle",
+            colour = "#FF0000",
+            content = "probab_help",
+            type = "markdown",
+            size = "l",
+            buttonLabel = "Okay",
+            easyClose = TRUE,
+            fade = TRUE
+          ))
 
       )
     } else
@@ -263,7 +296,17 @@ output$SelVars <- renderMenu({
               choices = c("25%", "50%", "75%"),
               selected = "25%",
               multiple = FALSE,
-            ))
+            )%>% 
+              helper(
+                icon = "question-circle",
+                colour = "#FF0000",
+                content = "probab_help",
+                type = "markdown",
+                size = "l",
+                buttonLabel = "Okay",
+                easyClose = TRUE,
+                fade = TRUE
+              ))
           
         )
       })
@@ -487,17 +530,17 @@ output$SelVars <- renderMenu({
                             ),
                       opacity = 0.7,
                       title = ~if(input$var_sel == "SdYd_Mg"){
-                        as.character(input$var_sel)
+                        "Annual Sediment Yield</br>From WEPPcloud (Mg)"
                       }else
                         if(input$var_sel == "Sediment_Reduction_Mg" & input$probab_sel == "25%"){
                           var_name= "sed_reduc_Mg_25probab"
-                          as.character(var_name)}else
+                          "Annual Reduction in</br>Sediment Yield (Mg)</br> at 25% Probability"}else
                             if(input$var_sel == "Sediment_Reduction_Mg" & input$probab_sel == "50%"){
                               var_name= "sed_reduc_Mg_50probab"
-                              as.character(var_name)}else
+                              "Annual Reduction in</br>Sediment Yield (Mg)</br> at 50% Probability"}else
                                 if(input$var_sel == "Sediment_Reduction_Mg" & input$probab_sel == "75%"){
                                   var_name= "sed_reduc_Mg_75probab"
-                                  as.character(var_name)},
+                                  "Annual Reduction in</br>Sediment Yield (Mg)</br> at 75% Probability"},
                       position = "bottomright",
                       na.label = "No Erosion")
   )
