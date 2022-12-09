@@ -2,4 +2,6 @@
 
 ***
   
-This filter allows users to dynamically filter and display data by percent of watershed area contributing the largest magnitude of the selected variable.
+This slider allows the users to dynamically filter the most erosive hillslopes contributing the largest sediment per unit area.
+
+

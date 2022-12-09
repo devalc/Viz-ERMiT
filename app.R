@@ -7,10 +7,10 @@
 ##
 ## Author: Chinmay Deval
 ##
-## Created On: 2022-09-13
+## Updated On: 12/02/2022
 ##
 ## Copyright (c) Chinmay Deval, 2022
-## Email: chinmay.deval91@gmail.com
+## Email: chinmay.deval91@gmail.com/deva4998@vandals.uidaho.edu
 ##
 ## --------------------------------------------------------------------------------------##
 ##  Notes:
@@ -23,17 +23,17 @@
 # cat("\014")
 
 ## ----------------------------------Load packages---------------------------------------##
-library(shiny)
-library(shinydashboard)
-library(shinydashboardPlus)
-library(shinyhelper)
-library(sf)
-library(sfarrow)
-library(shinyWidgets)
-library(leaflet)
-library(plotly)
-library(tidyverse)
-library(sever)
+library(shiny, quietly = TRUE,)
+library(shinydashboard, quietly = TRUE)
+library(shinydashboardPlus, quietly = TRUE)
+library(shinyhelper, quietly = TRUE)
+library(sf, quietly = TRUE)
+library(sfarrow, quietly = TRUE)
+library(shinyWidgets, quietly = TRUE)
+library(leaflet, quietly = TRUE)
+library(plotly, quietly = TRUE)
+library(tidyverse, quietly = TRUE)
+library(sever, quietly = TRUE)
 
 
 
@@ -135,17 +135,29 @@ ui <-
           "Cumulative Chart",
           icon = icon("chart-line"),
           br(),
+          tags$h5("Click the yellow icon for help",br(),"in interpreting this chart")%>% 
+            helper( 
+              icon = "info-circle",
+              colour = "#ffb703",
+              content = "Cplot_help",
+              type = "markdown",
+              size = "l",
+              buttonLabel = "Okay",
+              easyClose = TRUE,
+              fade = TRUE
+            ),
+          br(),
           shinycssloaders::withSpinner(
             plotly::plotlyOutput("cumulative", height = 350),type = 8)
         ),
         
         menuItem(
-          "Filter Visuals",
+          "Filter the Map",
           icon = icon("filter"),
           startExpanded = FALSE,
           sliderInput(
             "filt_area",
-            "Filter by % Area:",
+            "Filter hillslopes contributing largest sediment yield:",
             min = 0,
             max = 100,
             value = 100
@@ -234,7 +246,7 @@ output$SelVars <- renderMenu({
           inputId = "var_sel",
           label = "Select variable",
           choices = c("Sediment Yield (Mg)"= "SdYd_Mg",
-                      "Reduction in Sediment Yield (Mg)" = "Sediment_Reduction_Mg"),
+                      "Post-treatment Sediment Yield (Mg)" = "Sediment_Reduction_Mg"),
           selected = "SdYd_Mg",
           multiple = FALSE
         ),
@@ -386,16 +398,44 @@ output$SelVars <- renderMenu({
           }else
             if(input$var_sel == "Sediment_Reduction_Mg" & input$probab_sel == "75%"){
              get(!!paste("cum", "sed_reduc_Mg_75probab",sep = "_"))
-            }), size = 0.5)+ 
+            }, 
+        text =  if (input$var_sel == "SdYd_Mg") {
+          paste(paste0(round(get(!!paste("cum", input$var_sel,sep = "_")),0),
+                "%"),"of the total sediment yield","\nis contributed by", paste0(round(cumPercArea,0),
+                "%"), "of total hillslope area.")}else
+                  if(input$var_sel == "Sediment_Reduction_Mg" & input$probab_sel == "25%"){
+                    paste(paste0(round(get(!!paste("cum", "sed_reduc_Mg_25probab",sep = "_")),0),
+                                 "%"),"of the total post-treatment sediment yield",
+                          "\nis contributed by", paste0(round(cumPercArea,0),
+                                                        "%"), "of total hillslope area.")
+                  }else
+                    if(input$var_sel == "Sediment_Reduction_Mg" & input$probab_sel == "50%"){
+                      paste(paste0(round(get(!!paste("cum", "sed_reduc_Mg_50probab",sep = "_")),0),
+                                   "%"),"of the total post-treatment sediment yield",
+                            "\nis contributed by", paste0(round(cumPercArea,0),
+                                                          "%"), "of total hillslope area.")
+                    }else
+                      if(input$var_sel == "Sediment_Reduction_Mg" & input$probab_sel == "75%"){
+                        paste(paste0(round(get(!!paste("cum", "sed_reduc_Mg_75probab",sep = "_")),0),
+                                     "%"),"of the total post-treatment sediment yield",
+                              "\nis contributed by", paste0(round(cumPercArea,0),
+                                                            "%"), "of total hillslope area.")
+                      },group =1), size = 0.5)+ 
       theme(axis.title.x = element_blank(),
             axis.title.y = element_blank(),
             axis.text.y =  element_blank(),
             axis.text.x = element_blank())+
       ggthemes::theme_economist()+ ggthemes::scale_color_colorblind()+
-      labs(x = "Percent of total hillslope area",
-           y = "Cumulative Percent of total \nselected variable"
-      )
+      labs(x = "Total Hillslope Area (%)")
     
+    if(input$var_sel == "SdYd_Mg"){
+      p1 <- p1 + labs(y = "Total Sediment Yield (%)")
+    }else
+      if(input$var_sel == "Sediment_Reduction_Mg"){
+      p1 <- p1 + labs(y = "Total Post-treatment Sediment Yield (%)")
+      }
+    
+    ggplotly(p1, tooltip = "text")
   })
   
   
@@ -494,20 +534,20 @@ output$SelVars <- renderMenu({
                                    df_for_cplt()$wepp_id,
                                    "<br/>", 
                                    if (input$var_sel == "SdYd_Mg") {
-                                     paste0("<strong>SdYd_Mg: </strong> ",
-                                     round(df_for_cplt()$SdYd_Mg,2))
+                                     paste0("<strong>Annual average sediment yield</br>from WEPPcloud (Mg): </strong> ",
+                                     round(df_for_cplt()$SdYd_Mg,0))
                                      }else{paste0(
-                                   "<strong>SdYd_Mg: </strong> ",
-                                   round(df_for_cplt()$SdYd_Mg,2),
+                                   "<strong>Annual average sediment yield</br>from WEPPcloud (Mg): </strong> ",
+                                   round(df_for_cplt()$SdYd_Mg,0),
                                    "<br/>",
-                                   "<strong>sed_reduc_Mg_25probab: </strong> ",
-                                   round(df_for_cplt()$sed_reduc_Mg_25probab,2),
+                                   "<strong>Post-treatment sediment yield</br>at 25% probability (Mg): </strong> ",
+                                   round(df_for_cplt()$sed_reduc_Mg_25probab,0),
                                    "<br/>",
-                                   "<strong>sed_reduc_Mg_50probab: </strong> ",
-                                   round(df_for_cplt()$sed_reduc_Mg_50probab,2),
+                                   "<strong>Post-treatment sediment yield</br>at 50% probability (Mg): </strong> ",
+                                   round(df_for_cplt()$sed_reduc_Mg_50probab,0),
                                    "<br/>",
-                                   "<strong>sed_reduc_Mg_75probab: </strong> ",
-                                   round(df_for_cplt()$sed_reduc_Mg_75probab,2),
+                                   "<strong>Post-treatment sediment yield</br>at 75% probability (Mg): </strong> ",
+                                   round(df_for_cplt()$sed_reduc_Mg_75probab,0),
                                    "<br/>"
                                  )}),
                                  labelOptions = labelOptions(
@@ -530,17 +570,17 @@ output$SelVars <- renderMenu({
                             ),
                       opacity = 0.7,
                       title = ~if(input$var_sel == "SdYd_Mg"){
-                        "Annual Sediment Yield</br>From WEPPcloud (Mg)"
+                        "Annual average sediment yield</br>from WEPPcloud (Mg)"
                       }else
                         if(input$var_sel == "Sediment_Reduction_Mg" & input$probab_sel == "25%"){
                           var_name= "sed_reduc_Mg_25probab"
-                          "Annual Reduction in</br>Sediment Yield (Mg)</br> at 25% Probability"}else
+                          "Post-treatment </br>sediment yield (Mg)</br> at 25% probability"}else
                             if(input$var_sel == "Sediment_Reduction_Mg" & input$probab_sel == "50%"){
                               var_name= "sed_reduc_Mg_50probab"
-                              "Annual Reduction in</br>Sediment Yield (Mg)</br> at 50% Probability"}else
+                              "Post-treatment </br>sediment yield (Mg)</br> at 50% probability"}else
                                 if(input$var_sel == "Sediment_Reduction_Mg" & input$probab_sel == "75%"){
                                   var_name= "sed_reduc_Mg_75probab"
-                                  "Annual Reduction in</br>Sediment Yield (Mg)</br> at 75% Probability"},
+                                  "Post-treatment </br>sediment yield (Mg)</br> at 75% probability"},
                       position = "bottomright",
                       na.label = "No Erosion")
   )
